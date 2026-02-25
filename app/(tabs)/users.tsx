@@ -1,85 +1,121 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   ScrollView,
   View,
   Text,
   Pressable,
+  Animated,
   StatusBar,
   Dimensions,
   Platform,
+  LayoutAnimation,
+  UIManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeInUp,
-  FadeOut,
-  SlideInDown,
-  SlideOutUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  interpolate,
-  Layout,
-} from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import UserForm from "../../components/UserForm";
 import { useApp } from "../../context/AppContext";
 import { formatDate } from "../../utils/helpers";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
-// ─── Responsive Helpers ───
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
+  Dimensions.get("window");
+
 const scale = (size) => (SCREEN_WIDTH / 390) * size;
-const verticalScale = (size) => (SCREEN_HEIGHT / 844) * size;
-const moderateScale = (size, factor = 0.5) =>
-  size + (scale(size) - size) * factor;
+const vScale = (size) => (SCREEN_HEIGHT / 844) * size;
+const mScale = (size, f = 0.5) => size + (scale(size) - size) * f;
 
-// ─── Color Palette ───
-const COLORS = {
+const C = {
   primary: "#4F46E5",
   primaryLight: "#818CF8",
   primaryDark: "#3730A3",
   accent: "#06B6D4",
-  accentLight: "#22D3EE",
   success: "#10B981",
   warning: "#F59E0B",
   error: "#EF4444",
   surface: "#FFFFFF",
   surfaceAlt: "#F8FAFC",
-  background: "#F1F5F9",
+  bg: "#F1F5F9",
   border: "#E2E8F0",
   borderLight: "#F1F5F9",
-  textPrimary: "#0F172A",
-  textSecondary: "#475569",
+  text: "#0F172A",
+  textSec: "#475569",
   textMuted: "#94A3B8",
   textLight: "#CBD5E1",
-  overlay: "rgba(15, 23, 42, 0.04)",
 };
 
-// ─── Animated Avatar ───
-function UserAvatar({ name, size = "md", isActive = false, index = 0 }) {
+function FadeInView({ delay = 0, duration = 500, style, children }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Animated.View
+      style={[style, { opacity, transform: [{ translateY }] }]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
+  const anim = useRef(new Animated.Value(1)).current;
+
+  const onIn = () =>
+    Animated.spring(anim, {
+      toValue: scaleValue,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+
+  const onOut = () =>
+    Animated.spring(anim, {
+      toValue: 1,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable onPress={onPress} onPressIn={onIn} onPressOut={onOut}>
+      <Animated.View style={[style, { transform: [{ scale: anim }] }]}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function UserAvatar({ name, size = "md", isActive = false }) {
   const initial = name?.charAt(0)?.toUpperCase() || "?";
 
-  const dimensions = {
-    sm: scale(40),
-    md: scale(48),
-    lg: scale(64),
-    xl: scale(80),
-  };
+  const dims = { sm: scale(40), md: scale(48), lg: scale(56) };
+  const fonts = { sm: mScale(14), md: mScale(17), lg: mScale(22) };
 
-  const fontSizes = {
-    sm: moderateScale(14),
-    md: moderateScale(17),
-    lg: moderateScale(24),
-    xl: moderateScale(30),
-  };
-
-  const avatarColors = [
+  const palettes = [
     ["#6366F1", "#8B5CF6"],
     ["#06B6D4", "#0EA5E9"],
     ["#10B981", "#34D399"],
@@ -90,23 +126,20 @@ function UserAvatar({ name, size = "md", isActive = false, index = 0 }) {
     ["#14B8A6", "#2DD4BF"],
   ];
 
-  const colorIndex = (name?.charCodeAt(0) || 0) % avatarColors.length;
-  const gradientColors = isActive
-    ? ["#4F46E5", "#7C3AED"]
-    : avatarColors[colorIndex];
-
-  const dim = dimensions[size];
+  const idx = (name?.charCodeAt(0) || 0) % palettes.length;
+  const colors = isActive ? ["#4F46E5", "#7C3AED"] : palettes[idx];
+  const d = dims[size];
 
   return (
-    <View style={{ position: "relative" }}>
+    <View>
       <LinearGradient
-        colors={gradientColors}
+        colors={colors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
-          width: dim,
-          height: dim,
-          borderRadius: dim / 2,
+          width: d,
+          height: d,
+          borderRadius: d / 2,
           alignItems: "center",
           justifyContent: "center",
           ...(isActive && {
@@ -120,10 +153,9 @@ function UserAvatar({ name, size = "md", isActive = false, index = 0 }) {
       >
         <Text
           style={{
-            color: "#FFFFFF",
+            color: "#fff",
             fontWeight: "800",
-            fontSize: fontSizes[size],
-            letterSpacing: 0.5,
+            fontSize: fonts[size],
           }}
         >
           {initial}
@@ -131,8 +163,7 @@ function UserAvatar({ name, size = "md", isActive = false, index = 0 }) {
       </LinearGradient>
 
       {isActive && (
-        <Animated.View
-          entering={FadeIn.delay(300).springify()}
+        <View
           style={{
             position: "absolute",
             bottom: -1,
@@ -140,42 +171,25 @@ function UserAvatar({ name, size = "md", isActive = false, index = 0 }) {
             width: scale(16),
             height: scale(16),
             borderRadius: scale(8),
-            backgroundColor: COLORS.success,
+            backgroundColor: C.success,
             borderWidth: 2.5,
-            borderColor: COLORS.surface,
+            borderColor: "#fff",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           <Ionicons name="checkmark" size={8} color="#fff" />
-        </Animated.View>
+        </View>
       )}
     </View>
   );
 }
 
-// ─── Glassmorphic Stat Pill ───
-function StatPill({ icon, label, value, gradient, delay = 0 }) {
-  const pressScale = useSharedValue(1);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pressScale.value }],
-  }));
-
+function StatPill({ icon, label, value, delay = 0 }) {
   return (
-    <Animated.View
-      entering={FadeInUp.delay(delay).springify().damping(15)}
-      style={{ flex: 1 }}
-    >
-      <AnimatedPressable
-        onPressIn={() => {
-          pressScale.value = withSpring(0.95, { damping: 15 });
-        }}
-        onPressOut={() => {
-          pressScale.value = withSpring(1, { damping: 15 });
-        }}
-        style={animatedStyle}
-      >
+    <FadeInView delay={delay} style={{ flex: 1 }}>
+      <ScalePress scaleValue={0.95}>
         <View
           style={{
             backgroundColor: "rgba(255,255,255,0.15)",
@@ -183,7 +197,7 @@ function StatPill({ icon, label, value, gradient, delay = 0 }) {
             padding: scale(14),
             borderWidth: 1,
             borderColor: "rgba(255,255,255,0.2)",
-            minHeight: verticalScale(100),
+            minHeight: vScale(100),
             justifyContent: "space-between",
           }}
         >
@@ -197,14 +211,14 @@ function StatPill({ icon, label, value, gradient, delay = 0 }) {
               justifyContent: "center",
             }}
           >
-            <Ionicons name={icon} size={moderateScale(18)} color="#fff" />
+            <Ionicons name={icon} size={mScale(18)} color="#fff" />
           </View>
 
-          <View style={{ marginTop: verticalScale(12) }}>
+          <View style={{ marginTop: vScale(12) }}>
             <Text
               style={{
-                color: "#FFFFFF",
-                fontSize: moderateScale(24),
+                color: "#fff",
+                fontSize: mScale(24),
                 fontWeight: "900",
                 letterSpacing: -0.5,
               }}
@@ -214,10 +228,10 @@ function StatPill({ icon, label, value, gradient, delay = 0 }) {
             <Text
               style={{
                 color: "rgba(255,255,255,0.7)",
-                fontSize: moderateScale(11),
-                fontWeight: "600",
+                fontSize: mScale(10),
+                fontWeight: "700",
                 marginTop: 2,
-                letterSpacing: 0.3,
+                letterSpacing: 0.8,
                 textTransform: "uppercase",
               }}
             >
@@ -225,57 +239,36 @@ function StatPill({ icon, label, value, gradient, delay = 0 }) {
             </Text>
           </View>
         </View>
-      </AnimatedPressable>
-    </Animated.View>
+      </ScalePress>
+    </FadeInView>
   );
 }
 
-// ─── Interactive User Card ───
+
 function UserCard({ user, isCurrentUser, index }) {
-  const pressScale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pressScale.value }],
-  }));
-
   return (
-    <Animated.View
-      entering={FadeInDown.delay(index * 80)
-        .springify()
-        .damping(18)
-        .stiffness(120)}
-      layout={Layout.springify()}
-    >
-      <AnimatedPressable
-        onPressIn={() => {
-          pressScale.value = withSpring(0.97, { damping: 15 });
-        }}
-        onPressOut={() => {
-          pressScale.value = withSpring(1, { damping: 15 });
-        }}
-        style={animatedStyle}
-      >
+    <FadeInView delay={150 + index * 80}>
+      <ScalePress>
         <View
           style={{
-            backgroundColor: COLORS.surface,
+            backgroundColor: C.surface,
             borderRadius: scale(20),
             padding: scale(16),
             marginBottom: scale(12),
             borderWidth: isCurrentUser ? 1.5 : 1,
             borderColor: isCurrentUser
               ? "rgba(79,70,229,0.2)"
-              : COLORS.borderLight,
+              : C.borderLight,
             shadowColor: isCurrentUser ? "#4F46E5" : "#0F172A",
-            shadowOffset: { width: 0, height: isCurrentUser ? 4 : 2 },
+            shadowOffset: {
+              width: 0,
+              height: isCurrentUser ? 4 : 2,
+            },
             shadowOpacity: isCurrentUser ? 0.08 : 0.03,
             shadowRadius: isCurrentUser ? 16 : 8,
             elevation: isCurrentUser ? 5 : 2,
-            ...(isCurrentUser && {
-              backgroundColor: "#FEFEFF",
-            }),
           }}
         >
-          {/* Active indicator strip */}
           {isCurrentUser && (
             <LinearGradient
               colors={["#4F46E5", "#7C3AED"]}
@@ -284,8 +277,8 @@ function UserCard({ user, isCurrentUser, index }) {
               style={{
                 position: "absolute",
                 left: 0,
-                top: scale(12),
-                bottom: scale(12),
+                top: scale(14),
+                bottom: scale(14),
                 width: scale(3.5),
                 borderRadius: scale(2),
               }}
@@ -296,14 +289,13 @@ function UserCard({ user, isCurrentUser, index }) {
             style={{
               flexDirection: "row",
               alignItems: "center",
-              paddingLeft: isCurrentUser ? scale(4) : 0,
+              paddingLeft: isCurrentUser ? scale(6) : 0,
             }}
           >
             <UserAvatar
               name={user.fullName}
               size="md"
               isActive={isCurrentUser}
-              index={index}
             />
 
             <View style={{ flex: 1, marginLeft: scale(14) }}>
@@ -311,16 +303,14 @@ function UserCard({ user, isCurrentUser, index }) {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  flexWrap: "wrap",
                 }}
               >
                 <Text
                   numberOfLines={1}
                   style={{
-                    color: COLORS.textPrimary,
+                    color: C.text,
                     fontWeight: "700",
-                    fontSize: moderateScale(15),
-                    letterSpacing: -0.2,
+                    fontSize: mScale(15),
                     flexShrink: 1,
                   }}
                 >
@@ -340,11 +330,11 @@ function UserCard({ user, isCurrentUser, index }) {
                   >
                     <Text
                       style={{
-                        color: COLORS.primary,
-                        fontSize: moderateScale(10),
+                        color: C.primary,
+                        fontSize: mScale(10),
                         fontWeight: "800",
-                        letterSpacing: 0.5,
                         textTransform: "uppercase",
+                        letterSpacing: 0.5,
                       }}
                     >
                       You
@@ -357,15 +347,15 @@ function UserCard({ user, isCurrentUser, index }) {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  marginTop: scale(5),
+                  marginTop: scale(6),
                 }}
               >
                 <View
                   style={{
-                    width: scale(20),
-                    height: scale(20),
-                    borderRadius: scale(6),
-                    backgroundColor: COLORS.borderLight,
+                    width: scale(22),
+                    height: scale(22),
+                    borderRadius: scale(7),
+                    backgroundColor: C.borderLight,
                     alignItems: "center",
                     justifyContent: "center",
                     marginRight: scale(6),
@@ -373,15 +363,15 @@ function UserCard({ user, isCurrentUser, index }) {
                 >
                   <Ionicons
                     name="mail"
-                    size={moderateScale(10)}
-                    color={COLORS.textMuted}
+                    size={mScale(10)}
+                    color={C.textMuted}
                   />
                 </View>
                 <Text
                   numberOfLines={1}
                   style={{
-                    color: COLORS.textSecondary,
-                    fontSize: moderateScale(12),
+                    color: C.textSec,
+                    fontSize: mScale(12),
                     fontWeight: "500",
                     flex: 1,
                   }}
@@ -399,10 +389,10 @@ function UserCard({ user, isCurrentUser, index }) {
               >
                 <View
                   style={{
-                    width: scale(20),
-                    height: scale(20),
-                    borderRadius: scale(6),
-                    backgroundColor: COLORS.borderLight,
+                    width: scale(22),
+                    height: scale(22),
+                    borderRadius: scale(7),
+                    backgroundColor: C.borderLight,
                     alignItems: "center",
                     justifyContent: "center",
                     marginRight: scale(6),
@@ -410,14 +400,14 @@ function UserCard({ user, isCurrentUser, index }) {
                 >
                   <Ionicons
                     name="time"
-                    size={moderateScale(10)}
-                    color={COLORS.textMuted}
+                    size={mScale(10)}
+                    color={C.textMuted}
                   />
                 </View>
                 <Text
                   style={{
-                    color: COLORS.textLight,
-                    fontSize: moderateScale(11),
+                    color: C.textLight,
+                    fontSize: mScale(11),
                     fontWeight: "500",
                   }}
                 >
@@ -426,12 +416,13 @@ function UserCard({ user, isCurrentUser, index }) {
               </View>
             </View>
 
+    
             <View
               style={{
-                width: scale(32),
-                height: scale(32),
-                borderRadius: scale(10),
-                backgroundColor: COLORS.borderLight,
+                width: scale(34),
+                height: scale(34),
+                borderRadius: scale(11),
+                backgroundColor: C.borderLight,
                 alignItems: "center",
                 justifyContent: "center",
                 marginLeft: scale(8),
@@ -439,293 +430,313 @@ function UserCard({ user, isCurrentUser, index }) {
             >
               <Ionicons
                 name="chevron-forward"
-                size={moderateScale(14)}
-                color={COLORS.textMuted}
+                size={mScale(14)}
+                color={C.textMuted}
               />
             </View>
           </View>
         </View>
-      </AnimatedPressable>
-    </Animated.View>
+      </ScalePress>
+    </FadeInView>
   );
 }
 
-// ─── Floating Action Button ───
-function FloatingAddButton({ onPress, isOpen }) {
-  const rotation = useSharedValue(0);
-  const buttonScale = useSharedValue(1);
+function FAB({ onPress, isOpen }) {
+  const rotation = useRef(new Animated.Value(0)).current;
+  const btnScale = useRef(new Animated.Value(1)).current;
 
-  React.useEffect(() => {
-    rotation.value = withSpring(isOpen ? 45 : 0, { damping: 15 });
+  useEffect(() => {
+    Animated.spring(rotation, {
+      toValue: isOpen ? 1 : 0,
+      friction: 8,
+      tension: 60,
+      useNativeDriver: true,
+    }).start();
   }, [isOpen]);
 
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
-
-  const containerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
-  }));
+  const rotate = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "45deg"],
+  });
 
   return (
-    <AnimatedPressable
+    <Pressable
       onPress={onPress}
-      onPressIn={() => {
-        buttonScale.value = withSpring(0.92, { damping: 15 });
-      }}
-      onPressOut={() => {
-        buttonScale.value = withSpring(1, { damping: 15 });
-      }}
-      style={[
-        containerStyle,
-        {
-          position: "absolute",
-          bottom: verticalScale(30),
-          right: scale(20),
-          zIndex: 50,
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={isOpen ? ["#EF4444", "#DC2626"] : ["#4F46E5", "#7C3AED"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          width: scale(56),
-          height: scale(56),
-          borderRadius: scale(18),
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: isOpen ? "#EF4444" : "#4F46E5",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.35,
-          shadowRadius: 16,
-          elevation: 10,
-        }}
-      >
-        <Animated.View style={iconStyle}>
-          <Ionicons name="add" size={moderateScale(28)} color="#fff" />
-        </Animated.View>
-      </LinearGradient>
-    </AnimatedPressable>
-  );
-}
-
-// ─── Section Header ───
-function SectionHeader({ title, count, onFilter }) {
-  return (
-    <Animated.View
-      entering={FadeInDown.delay(200).springify()}
+      onPressIn={() =>
+        Animated.spring(btnScale, {
+          toValue: 0.88,
+          friction: 8,
+          useNativeDriver: true,
+        }).start()
+      }
+      onPressOut={() =>
+        Animated.spring(btnScale, {
+          toValue: 1,
+          friction: 8,
+          useNativeDriver: true,
+        }).start()
+      }
       style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: scale(16),
-        paddingHorizontal: scale(4),
+        position: "absolute",
+        bottom: vScale(32),
+        right: scale(20),
+        zIndex: 50,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text
+      <Animated.View style={{ transform: [{ scale: btnScale }] }}>
+        <LinearGradient
+          colors={
+            isOpen
+              ? ["#EF4444", "#DC2626"]
+              : ["#4F46E5", "#7C3AED"]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={{
-            color: COLORS.textPrimary,
-            fontWeight: "800",
-            fontSize: moderateScale(20),
-            letterSpacing: -0.5,
+            width: scale(58),
+            height: scale(58),
+            borderRadius: scale(19),
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: isOpen ? "#EF4444" : "#4F46E5",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 16,
+            elevation: 12,
           }}
         >
-          {title}
-        </Text>
-        {count !== undefined && (
-          <View
-            style={{
-              marginLeft: scale(10),
-              backgroundColor: COLORS.primary,
-              paddingHorizontal: scale(10),
-              paddingVertical: scale(3),
-              borderRadius: scale(8),
-              minWidth: scale(28),
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: moderateScale(11),
-                fontWeight: "800",
-              }}
-            >
-              {count}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <Pressable
-        onPress={onFilter}
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: COLORS.surfaceAlt,
-          paddingHorizontal: scale(12),
-          paddingVertical: scale(8),
-          borderRadius: scale(10),
-          borderWidth: 1,
-          borderColor: COLORS.border,
-        }}
-      >
-        <Ionicons
-          name="options-outline"
-          size={moderateScale(14)}
-          color={COLORS.textSecondary}
-        />
-        <Text
-          style={{
-            color: COLORS.textSecondary,
-            fontSize: moderateScale(12),
-            fontWeight: "600",
-            marginLeft: scale(5),
-          }}
-        >
-          Filter
-        </Text>
-      </Pressable>
-    </Animated.View>
+          <Animated.View style={{ transform: [{ rotate }] }}>
+            <Ionicons
+              name="add"
+              size={mScale(28)}
+              color="#fff"
+            />
+          </Animated.View>
+        </LinearGradient>
+      </Animated.View>
+    </Pressable>
   );
 }
 
-// ─── Empty State ───
 function EmptyState() {
   return (
-    <Animated.View
-      entering={FadeInDown.delay(300).springify()}
-      style={{
-        backgroundColor: COLORS.surface,
-        borderRadius: scale(24),
-        padding: scale(32),
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: COLORS.borderLight,
-        borderStyle: "dashed",
-      }}
-    >
-      <LinearGradient
-        colors={["#EEF2FF", "#E0E7FF"]}
+    <FadeInView delay={300}>
+      <View
         style={{
-          width: scale(80),
-          height: scale(80),
+          backgroundColor: C.surface,
           borderRadius: scale(24),
+          padding: scale(36),
           alignItems: "center",
-          justifyContent: "center",
-          marginBottom: scale(20),
+          borderWidth: 1.5,
+          borderColor: C.border,
+          borderStyle: "dashed",
         }}
       >
-        <Ionicons
-          name="people-outline"
-          size={moderateScale(36)}
-          color={COLORS.primaryLight}
-        />
-      </LinearGradient>
+        <LinearGradient
+          colors={["#EEF2FF", "#E0E7FF"]}
+          style={{
+            width: scale(80),
+            height: scale(80),
+            borderRadius: scale(24),
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: scale(20),
+          }}
+        >
+          <Ionicons
+            name="people-outline"
+            size={mScale(36)}
+            color={C.primaryLight}
+          />
+        </LinearGradient>
 
-      <Text
-        style={{
-          color: COLORS.textPrimary,
-          fontWeight: "800",
-          fontSize: moderateScale(18),
-          letterSpacing: -0.3,
-        }}
-      >
-        No Users Yet
-      </Text>
-      <Text
-        style={{
-          color: COLORS.textMuted,
-          fontSize: moderateScale(13),
-          fontWeight: "500",
-          textAlign: "center",
-          marginTop: scale(8),
-          lineHeight: moderateScale(20),
-          paddingHorizontal: scale(16),
-        }}
-      >
-        Tap the + button to create your first user and get started
-      </Text>
+        <Text
+          style={{
+            color: C.text,
+            fontWeight: "800",
+            fontSize: mScale(18),
+          }}
+        >
+          No Users Yet
+        </Text>
+        <Text
+          style={{
+            color: C.textMuted,
+            fontSize: mScale(13),
+            fontWeight: "500",
+            textAlign: "center",
+            marginTop: scale(8),
+            lineHeight: mScale(20),
+            paddingHorizontal: scale(12),
+          }}
+        >
+          Tap the{" "}
+          <Text style={{ color: C.primary, fontWeight: "800" }}>
+            +
+          </Text>{" "}
+          button to create your first user
+        </Text>
+      </View>
+    </FadeInView>
+  );
+}
 
+function SectionHeader({ title, count }) {
+  return (
+    <FadeInView delay={200}>
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          marginTop: scale(20),
-          backgroundColor: COLORS.surfaceAlt,
-          paddingHorizontal: scale(16),
-          paddingVertical: scale(10),
-          borderRadius: scale(12),
+          justifyContent: "space-between",
+          marginBottom: scale(16),
         }}
       >
-        <Ionicons
-          name="arrow-down"
-          size={moderateScale(14)}
-          color={COLORS.primary}
-        />
-        <Text
-          style={{
-            color: COLORS.primary,
-            fontSize: moderateScale(12),
-            fontWeight: "700",
-            marginLeft: scale(6),
-          }}
-        >
-          Tap + to add
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text
+            style={{
+              color: C.text,
+              fontWeight: "800",
+              fontSize: mScale(20),
+              letterSpacing: -0.5,
+            }}
+          >
+            {title}
+          </Text>
+          {count !== undefined && (
+            <View
+              style={{
+                marginLeft: scale(10),
+                backgroundColor: C.primary,
+                paddingHorizontal: scale(10),
+                paddingVertical: scale(3),
+                borderRadius: scale(8),
+                minWidth: scale(28),
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: mScale(11),
+                  fontWeight: "800",
+                }}
+              >
+                {count}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <ScalePress scaleValue={0.93}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: C.surfaceAlt,
+              paddingHorizontal: scale(12),
+              paddingVertical: scale(8),
+              borderRadius: scale(10),
+              borderWidth: 1,
+              borderColor: C.border,
+            }}
+          >
+            <Ionicons
+              name="options-outline"
+              size={mScale(14)}
+              color={C.textSec}
+            />
+            <Text
+              style={{
+                color: C.textSec,
+                fontSize: mScale(12),
+                fontWeight: "600",
+                marginLeft: scale(5),
+              }}
+            >
+              Filter
+            </Text>
+          </View>
+        </ScalePress>
       </View>
-    </Animated.View>
+    </FadeInView>
   );
 }
 
-// ─── Main Screen ───
 export default function UsersScreen() {
   const { users, currentUser } = useApp();
   const [showForm, setShowForm] = useState(false);
   const insets = useSafeAreaInsets();
+
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslate = useRef(new Animated.Value(-30)).current;
 
   const todayUsers = users.filter((u) => {
     const today = new Date().toDateString();
     return new Date(u.createdAt).toDateString() === today;
   });
 
-  const handleToggleForm = useCallback(() => {
-    setShowForm((prev) => !prev);
-  }, []);
-
-  const handleFormSuccess = useCallback(() => {
-    setShowForm(false);
-  }, []);
+  const toggleForm = () => {
+    if (showForm) {
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formTranslate, {
+          toValue: -30,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        LayoutAnimation.configureNext(
+          LayoutAnimation.Presets.easeInEaseOut
+        );
+        setShowForm(false);
+      });
+    } else {
+      LayoutAnimation.configureNext(
+        LayoutAnimation.Presets.easeInEaseOut
+      );
+      setShowForm(true);
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.spring(formTranslate, {
+          toValue: 0,
+          friction: 8,
+          tension: 50,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       <StatusBar barStyle="light-content" />
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingBottom: verticalScale(120),
-        }}
+        contentContainerStyle={{ paddingBottom: vScale(120) }}
         showsVerticalScrollIndicator={false}
-        bounces={true}
       >
-        {/* ── Hero Header ── */}
         <LinearGradient
           colors={["#312E81", "#4338CA", "#4F46E5"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={{
-            paddingTop: insets.top + verticalScale(16),
-            paddingBottom: verticalScale(32),
+            paddingTop: insets.top + vScale(16),
+            paddingBottom: vScale(32),
             borderBottomLeftRadius: scale(32),
             borderBottomRightRadius: scale(32),
             overflow: "hidden",
           }}
         >
-          {/* Decorative circles */}
           <View
             style={{
               position: "absolute",
@@ -748,61 +759,48 @@ export default function UsersScreen() {
               backgroundColor: "rgba(255,255,255,0.03)",
             }}
           />
-
-          {/* Top bar */}
-          <Animated.View
-            entering={FadeInDown.delay(100).springify()}
+          <FadeInView
+            delay={50}
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
               paddingHorizontal: scale(24),
-              marginBottom: verticalScale(24),
+              marginBottom: vScale(20),
             }}
           >
-            <View>
+            <View style={{ flex: 1, marginRight: scale(16) }}>
               <Text
                 style={{
                   color: "rgba(199,210,254,0.8)",
-                  fontSize: moderateScale(13),
+                  fontSize: mScale(13),
                   fontWeight: "600",
                   letterSpacing: 0.5,
                 }}
               >
                 Welcome back 👋
               </Text>
-              {currentUser ? (
-                <Text
-                  style={{
-                    color: "#FFFFFF",
-                    fontSize: moderateScale(26),
-                    fontWeight: "900",
-                    letterSpacing: -0.8,
-                    marginTop: scale(4),
-                  }}
-                >
-                  {currentUser.fullName}
-                </Text>
-              ) : (
-                <Text
-                  style={{
-                    color: "#FFFFFF",
-                    fontSize: moderateScale(26),
-                    fontWeight: "900",
-                    letterSpacing: -0.8,
-                    marginTop: scale(4),
-                  }}
-                >
-                  EllaTech
-                </Text>
-              )}
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: "#fff",
+                  fontSize: mScale(26),
+                  fontWeight: "900",
+                  letterSpacing: -0.8,
+                  marginTop: scale(4),
+                }}
+              >
+                {currentUser
+                  ? currentUser.fullName
+                  : "EllaTech"}
+              </Text>
             </View>
 
             {currentUser ? (
               <UserAvatar
                 name={currentUser.fullName}
                 size="lg"
-                isActive={true}
+                isActive
               />
             ) : (
               <View
@@ -819,22 +817,21 @@ export default function UsersScreen() {
               >
                 <Ionicons
                   name="person-outline"
-                  size={moderateScale(22)}
+                  size={mScale(22)}
                   color="rgba(255,255,255,0.7)"
                 />
               </View>
             )}
-          </Animated.View>
+          </FadeInView>
 
-          {/* Email info */}
           {currentUser && (
-            <Animated.View
-              entering={FadeInDown.delay(200).springify()}
+            <FadeInView
+              delay={150}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 paddingHorizontal: scale(24),
-                marginBottom: verticalScale(20),
+                marginBottom: vScale(20),
               }}
             >
               <View
@@ -849,16 +846,15 @@ export default function UsersScreen() {
               <Text
                 style={{
                   color: "rgba(199,210,254,0.8)",
-                  fontSize: moderateScale(13),
+                  fontSize: mScale(13),
                   fontWeight: "500",
                 }}
               >
                 {currentUser.email}
               </Text>
-            </Animated.View>
+            </FadeInView>
           )}
 
-          {/* Stats Row */}
           <View
             style={{
               flexDirection: "row",
@@ -887,23 +883,22 @@ export default function UsersScreen() {
           </View>
         </LinearGradient>
 
-        {/* ── Form Section ── */}
         {showForm && (
           <Animated.View
-            entering={SlideInDown.springify().damping(18)}
-            exiting={SlideOutUp.springify().damping(18)}
             style={{
               paddingHorizontal: scale(20),
-              marginTop: verticalScale(20),
+              marginTop: vScale(20),
+              opacity: formOpacity,
+              transform: [{ translateY: formTranslate }],
             }}
           >
             <View
               style={{
-                backgroundColor: COLORS.surface,
+                backgroundColor: C.surface,
                 borderRadius: scale(24),
                 padding: scale(20),
                 borderWidth: 1,
-                borderColor: COLORS.border,
+                borderColor: C.border,
                 shadowColor: "#4F46E5",
                 shadowOffset: { width: 0, height: 8 },
                 shadowOpacity: 0.08,
@@ -911,7 +906,6 @@ export default function UsersScreen() {
                 elevation: 6,
               }}
             >
-              {/* Form Header */}
               <View
                 style={{
                   flexDirection: "row",
@@ -920,7 +914,7 @@ export default function UsersScreen() {
                   marginBottom: scale(20),
                   paddingBottom: scale(16),
                   borderBottomWidth: 1,
-                  borderBottomColor: COLORS.borderLight,
+                  borderBottomColor: C.borderLight,
                 }}
               >
                 <View
@@ -942,25 +936,24 @@ export default function UsersScreen() {
                   >
                     <Ionicons
                       name="person-add"
-                      size={moderateScale(18)}
-                      color={COLORS.primary}
+                      size={mScale(18)}
+                      color={C.primary}
                     />
                   </LinearGradient>
                   <View>
                     <Text
                       style={{
-                        color: COLORS.textPrimary,
+                        color: C.text,
                         fontWeight: "800",
-                        fontSize: moderateScale(16),
-                        letterSpacing: -0.3,
+                        fontSize: mScale(16),
                       }}
                     >
                       New User
                     </Text>
                     <Text
                       style={{
-                        color: COLORS.textMuted,
-                        fontSize: moderateScale(11),
+                        color: C.textMuted,
+                        fontSize: mScale(11),
                         fontWeight: "500",
                         marginTop: 2,
                       }}
@@ -971,11 +964,11 @@ export default function UsersScreen() {
                 </View>
 
                 <Pressable
-                  onPress={() => setShowForm(false)}
+                  onPress={() => toggleForm()}
                   style={{
-                    width: scale(32),
-                    height: scale(32),
-                    borderRadius: scale(10),
+                    width: scale(34),
+                    height: scale(34),
+                    borderRadius: scale(11),
                     backgroundColor: "#FEF2F2",
                     alignItems: "center",
                     justifyContent: "center",
@@ -983,29 +976,28 @@ export default function UsersScreen() {
                 >
                   <Ionicons
                     name="close"
-                    size={moderateScale(16)}
-                    color={COLORS.error}
+                    size={mScale(16)}
+                    color={C.error}
                   />
                 </Pressable>
               </View>
 
-              <UserForm onSuccess={handleFormSuccess} />
+              <UserForm
+                onSuccess={() => {
+                  toggleForm();
+                }}
+              />
             </View>
           </Animated.View>
         )}
 
-        {/* ── Users List ── */}
         <View
           style={{
             paddingHorizontal: scale(20),
-            marginTop: verticalScale(24),
+            marginTop: vScale(24),
           }}
         >
-          <SectionHeader
-            title="Members"
-            count={users.length}
-            onFilter={() => {}}
-          />
+          <SectionHeader title="Members" count={users.length} />
 
           {users.length === 0 ? (
             <EmptyState />
@@ -1021,9 +1013,7 @@ export default function UsersScreen() {
           )}
         </View>
       </ScrollView>
-
-      {/* ── Floating Button ── */}
-      <FloatingAddButton onPress={handleToggleForm} isOpen={showForm} />
+      <FAB onPress={toggleForm} isOpen={showForm} />
     </View>
   );
 }

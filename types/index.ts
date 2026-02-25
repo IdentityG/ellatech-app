@@ -24,8 +24,9 @@ export interface Transaction {
   quantity: number;
   quantityBefore: number;
   quantityAfter: number;
+  unitPrice: number;
   timestamp: string;
-  performedBy: string; 
+  performedBy: string;
 }
 
 export interface AppState {
