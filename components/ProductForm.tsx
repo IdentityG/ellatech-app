@@ -14,7 +14,11 @@ import {
   validateQuantity,
 } from "../utils/helpers";
 
-const ProductForm = () => {
+interface Props {
+  onSuccess?: () => void;
+}
+
+const ProductForm = ({ onSuccess }: Props) => {
   const { registerProduct } = useApp();
 
   const [sku, setSku] = useState("");
@@ -72,14 +76,15 @@ const ProductForm = () => {
       setLoading(false);
 
       if (result.success) {
-        Alert.alert("✅ Success", result.message);
+        Alert.alert("Success", result.message);
         setSku("");
         setName("");
         setPrice("");
         setQuantity("");
         setErrors({});
+        onSuccess?.();
       } else {
-        Alert.alert("❌ Error", result.message);
+        Alert.alert("Error", result.message);
       }
     }, 600);
   };
@@ -94,11 +99,7 @@ const ProductForm = () => {
   };
 
   return (
-    <View className="bg-white rounded-2xl p-5 shadow-sm mx-4 mt-4">
-      <Text className="text-lg font-bold text-gray-800 mb-4">
-        Register New Product
-      </Text>
-
+    <View className="mb-2">
       <InputField
         label="SKU"
         placeholder="e.g. PROD-001"
@@ -143,7 +144,7 @@ const ProductForm = () => {
       <TouchableOpacity
         onPress={handleSubmit}
         disabled={loading}
-        className="bg-emerald-600 rounded-xl py-3 items-center mt-2"
+        className="bg-teal-600 rounded-xl py-3 items-center mt-2"
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
