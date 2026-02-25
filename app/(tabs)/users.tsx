@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, ReactNode } from "react";
 import {
   ScrollView,
   View,
@@ -10,6 +10,8 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
+  ViewStyle,
+  ColorValue,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import UserForm from "../../components/UserForm";
 import { useApp } from "../../context/AppContext";
 import { formatDate } from "../../utils/helpers";
+import { User } from "../../types";
 
 if (
   Platform.OS === "android" &&
@@ -28,9 +31,9 @@ if (
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
   Dimensions.get("window");
 
-const scale = (size) => (SCREEN_WIDTH / 390) * size;
-const vScale = (size) => (SCREEN_HEIGHT / 844) * size;
-const mScale = (size, f = 0.5) => size + (scale(size) - size) * f;
+const scale = (size: number) => (SCREEN_WIDTH / 390) * size;
+const vScale = (size: number) => (SCREEN_HEIGHT / 844) * size;
+const mScale = (size: number, f = 0.5) => size + (scale(size) - size) * f;
 
 const C = {
   primary: "#4F46E5",
@@ -51,7 +54,7 @@ const C = {
   textLight: "#CBD5E1",
 };
 
-function FadeInView({ delay = 0, duration = 500, style, children }) {
+function FadeInView({ delay = 0, duration = 500, style, children }: { delay?: number; duration?: number; style?: ViewStyle | ViewStyle[]; children: ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -83,7 +86,7 @@ function FadeInView({ delay = 0, duration = 500, style, children }) {
   );
 }
 
-function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
+function ScalePress({ onPress, style, children, scaleValue = 0.97 }: { onPress?: () => void; style?: ViewStyle | ViewStyle[]; children: ReactNode; scaleValue?: number }) {
   const anim = useRef(new Animated.Value(1)).current;
 
   const onIn = () =>
@@ -109,11 +112,11 @@ function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
   );
 }
 
-function UserAvatar({ name, size = "md", isActive = false }) {
+function UserAvatar({ name, size = "md", isActive = false }: { name: string; size?: "sm" | "md" | "lg"; isActive?: boolean }) {
   const initial = name?.charAt(0)?.toUpperCase() || "?";
 
-  const dims = { sm: scale(40), md: scale(48), lg: scale(56) };
-  const fonts = { sm: mScale(14), md: mScale(17), lg: mScale(22) };
+  const dims: Record<string, number> = { sm: scale(40), md: scale(48), lg: scale(56) };
+  const fonts: Record<string, number> = { sm: mScale(14), md: mScale(17), lg: mScale(22) };
 
   const palettes = [
     ["#6366F1", "#8B5CF6"],
@@ -127,7 +130,7 @@ function UserAvatar({ name, size = "md", isActive = false }) {
   ];
 
   const idx = (name?.charCodeAt(0) || 0) % palettes.length;
-  const colors = isActive ? ["#4F46E5", "#7C3AED"] : palettes[idx];
+  const colors = (isActive ? ["#4F46E5", "#7C3AED"] : palettes[idx]) as [string, string];
   const d = dims[size];
 
   return (
@@ -186,7 +189,9 @@ function UserAvatar({ name, size = "md", isActive = false }) {
 }
 
 
-function StatPill({ icon, label, value, delay = 0 }) {
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+function StatPill({ icon, label, value, delay = 0 }: { icon: IconName; label: string; value: string | number; delay?: number }) {
   return (
     <FadeInView delay={delay} style={{ flex: 1 }}>
       <ScalePress scaleValue={0.95}>
@@ -245,7 +250,7 @@ function StatPill({ icon, label, value, delay = 0 }) {
 }
 
 
-function UserCard({ user, isCurrentUser, index }) {
+function UserCard({ user, isCurrentUser, index }: { user: User; isCurrentUser: boolean; index: number }) {
   return (
     <FadeInView delay={150 + index * 80}>
       <ScalePress>
@@ -416,7 +421,7 @@ function UserCard({ user, isCurrentUser, index }) {
               </View>
             </View>
 
-    
+
             <View
               style={{
                 width: scale(34),
@@ -441,7 +446,7 @@ function UserCard({ user, isCurrentUser, index }) {
   );
 }
 
-function FAB({ onPress, isOpen }) {
+function FAB({ onPress, isOpen }: { onPress: () => void; isOpen: boolean }) {
   const rotation = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
@@ -581,7 +586,7 @@ function EmptyState() {
   );
 }
 
-function SectionHeader({ title, count }) {
+function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (
     <FadeInView delay={200}>
       <View

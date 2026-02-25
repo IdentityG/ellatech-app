@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, ReactNode } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Dimensions,
   Platform,
   Pressable,
+  ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,7 +44,7 @@ const C = {
   blueBorder: "#DBEAFE",
 };
 
-function FadeInView({ delay = 0, duration = 500, style, children }) {
+function FadeInView({ delay = 0, duration = 500, style, children }: { delay?: number; duration?: number; style?: ViewStyle | ViewStyle[]; children: ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -73,7 +74,7 @@ function FadeInView({ delay = 0, duration = 500, style, children }) {
   );
 }
 
-function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
+function ScalePress({ onPress, style, children, scaleValue = 0.97 }: { onPress?: () => void; style?: ViewStyle | ViewStyle[]; children: ReactNode; scaleValue?: number }) {
   const anim = useRef(new Animated.Value(1)).current;
 
   return (
@@ -101,7 +102,9 @@ function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
   );
 }
 
-function StatCard({ icon, label, value, sublabel, delay = 0 }) {
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+function StatCard({ icon, label, value, sublabel, delay = 0 }: { icon: IconName; label: string; value: string | number; sublabel?: string; delay?: number }) {
   return (
     <FadeInView delay={delay} style={{ flex: 1 }}>
       <ScalePress scaleValue={0.95}>
@@ -386,7 +389,7 @@ export default function HistoryScreen() {
           <StatCard
             icon="trending-up"
             label="Volume"
-            value={`ETB ${formatAmount(totalAmount)}`}
+            value={`ETB ${formatAmount(totalVolume)}`}
             delay={300}
           />
         </View>

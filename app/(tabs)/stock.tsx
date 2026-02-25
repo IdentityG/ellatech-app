@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, ReactNode } from "react";
 import {
   ScrollView,
   Text,
@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   Pressable,
+  ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,7 +44,7 @@ const C = {
   orangeBorder: "#FFEDD5",
 };
 
-function FadeInView({ delay = 0, duration = 500, style, children }) {
+function FadeInView({ delay = 0, duration = 500, style, children }: { delay?: number; duration?: number; style?: ViewStyle | ViewStyle[]; children: ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -73,7 +74,7 @@ function FadeInView({ delay = 0, duration = 500, style, children }) {
   );
 }
 
-function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
+function ScalePress({ onPress, style, children, scaleValue = 0.97 }: { onPress?: () => void; style?: ViewStyle | ViewStyle[]; children: ReactNode; scaleValue?: number }) {
   const anim = useRef(new Animated.Value(1)).current;
 
   return (
@@ -101,7 +102,9 @@ function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
   );
 }
 
-function StatPill({ icon, label, value, delay = 0 }) {
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+function StatPill({ icon, label, value, delay = 0 }: { icon: IconName; label: string; value: string | number; delay?: number }) {
   return (
     <FadeInView delay={delay} style={{ flex: 1 }}>
       <ScalePress scaleValue={0.95}>
@@ -392,7 +395,7 @@ function InstructionCard() {
   );
 }
 
-function SectionHeader({ title }) {
+function SectionHeader({ title }: { title: string }) {
   return (
     <FadeInView delay={350}>
       <View

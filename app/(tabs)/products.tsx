@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, ReactNode } from "react";
 import {
   ScrollView,
   View,
@@ -15,12 +15,14 @@ import {
   TouchableWithoutFeedback,
   Modal,
   StyleSheet,
+  ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ProductForm from "../../components/ProductForm";
 import { useApp } from "../../context/AppContext";
+import { Product } from "../../types";
 
 if (
   Platform.OS === "android" &&
@@ -32,9 +34,9 @@ if (
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
   Dimensions.get("window");
 
-const scale = (size) => (SCREEN_WIDTH / 390) * size;
-const vScale = (size) => (SCREEN_HEIGHT / 844) * size;
-const mScale = (size, f = 0.5) => size + (scale(size) - size) * f;
+const scale = (size: number) => (SCREEN_WIDTH / 390) * size;
+const vScale = (size: number) => (SCREEN_HEIGHT / 844) * size;
+const mScale = (size: number, f = 0.5) => size + (scale(size) - size) * f;
 
 const C = {
   primary: "#0D9488",
@@ -58,7 +60,7 @@ const C = {
   tealBorder: "#CCFBF1",
 };
 
-function FadeInView({ delay = 0, duration = 500, style, children }) {
+function FadeInView({ delay = 0, duration = 500, style, children }: { delay?: number; duration?: number; style?: ViewStyle | ViewStyle[]; children: ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -88,7 +90,7 @@ function FadeInView({ delay = 0, duration = 500, style, children }) {
   );
 }
 
-function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
+function ScalePress({ onPress, style, children, scaleValue = 0.97 }: { onPress?: () => void; style?: ViewStyle | ViewStyle[]; children: ReactNode; scaleValue?: number }) {
   const anim = useRef(new Animated.Value(1)).current;
 
   const onIn = () =>
@@ -114,9 +116,9 @@ function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
   );
 }
 
-function ProductIcon({ name, size = "md" }) {
-  const dims = { sm: scale(36), md: scale(48), lg: scale(56) };
-  const iconSizes = { sm: mScale(16), md: mScale(22), lg: mScale(26) };
+function ProductIcon({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
+  const dims: Record<string, number> = { sm: scale(36), md: scale(48), lg: scale(56) };
+  const iconSizes: Record<string, number> = { sm: mScale(16), md: mScale(22), lg: mScale(26) };
   const d = dims[size];
 
   const palettes = [
@@ -135,7 +137,7 @@ function ProductIcon({ name, size = "md" }) {
 
   return (
     <LinearGradient
-      colors={palettes[idx]}
+      colors={palettes[idx] as [string, string]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{
@@ -159,7 +161,9 @@ function ProductIcon({ name, size = "md" }) {
   );
 }
 
-function StatPill({ icon, label, value, delay = 0 }) {
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+function StatPill({ icon, label, value, delay = 0 }: { icon: IconName; label: string; value: string | number; delay?: number }) {
   return (
     <FadeInView delay={delay} style={{ flex: 1 }}>
       <ScalePress scaleValue={0.95}>
@@ -218,7 +222,7 @@ function StatPill({ icon, label, value, delay = 0 }) {
   );
 }
 
-function StockBadge({ quantity }) {
+function StockBadge({ quantity }: { quantity: number }) {
   let bg, textColor, label;
 
   if (quantity <= 0) {
@@ -257,7 +261,7 @@ function StockBadge({ quantity }) {
   );
 }
 
-function ProductCard({ product, index }) {
+function ProductCard({ product, index }: { product: Product; index: number }) {
   return (
     <FadeInView delay={150 + index * 80}>
       <ScalePress>
@@ -404,7 +408,7 @@ function ProductCard({ product, index }) {
   );
 }
 
-function EmptyProducts({ onAdd }) {
+function EmptyProducts({ onAdd }: { onAdd: () => void }) {
   return (
     <FadeInView delay={300}>
       <View
@@ -496,7 +500,7 @@ function EmptyProducts({ onAdd }) {
   );
 }
 
-function SectionHeader({ title, count }) {
+function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (
     <FadeInView delay={200}>
       <View
@@ -578,7 +582,7 @@ function SectionHeader({ title, count }) {
   );
 }
 
-function BottomSheetForm({ visible, onClose, onSuccess }) {
+function BottomSheetForm({ visible, onClose, onSuccess }: { visible: boolean; onClose: () => void; onSuccess: () => void }) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
@@ -838,7 +842,7 @@ function BottomSheetForm({ visible, onClose, onSuccess }) {
   );
 }
 
-function FAB({ onPress, isOpen }) {
+function FAB({ onPress, isOpen }: { onPress: () => void; isOpen: boolean }) {
   const rotation = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -992,7 +996,7 @@ function FAB({ onPress, isOpen }) {
   );
 }
 
-function formatValue(val) {
+function formatValue(val: number) {
   if (val >= 1000000) return (val / 1000000).toFixed(1) + "M";
   if (val >= 1000) return (val / 1000).toFixed(1) + "K";
   return val.toFixed(0);

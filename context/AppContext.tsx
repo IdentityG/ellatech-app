@@ -42,7 +42,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
- 
+
   useEffect(() => {
     const demo: User = {
       id: generateId(),
@@ -132,6 +132,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         quantity,
         quantityBefore: 0,
         quantityAfter: quantity,
+        unitPrice: price,
         timestamp: now,
         performedBy: currentUser.email,
       };
@@ -190,6 +191,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       quantity: amount,
       quantityBefore,
       quantityAfter,
+      unitPrice: product.price,
       timestamp: now,
       performedBy: currentUser.email,
     };

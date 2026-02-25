@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, ReactNode } from "react";
 import {
   View,
   Text,
@@ -8,19 +8,21 @@ import {
   Dimensions,
   Platform,
   Pressable,
+  ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "../../context/AppContext";
 import ProductStatusCard from "../../components/ProductStatusCard";
+import { Product } from "../../types";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
   Dimensions.get("window");
 
-const scale = (size) => (SCREEN_WIDTH / 390) * size;
-const vScale = (size) => (SCREEN_HEIGHT / 844) * size;
-const mScale = (size, f = 0.5) => size + (scale(size) - size) * f;
+const scale = (size: number) => (SCREEN_WIDTH / 390) * size;
+const vScale = (size: number) => (SCREEN_HEIGHT / 844) * size;
+const mScale = (size: number, f = 0.5) => size + (scale(size) - size) * f;
 
 const C = {
   primary: "#A21CAF",
@@ -44,7 +46,7 @@ const C = {
   fuchsiaBorder: "#FAE8FF",
 };
 
-function FadeInView({ delay = 0, duration = 500, style, children }) {
+function FadeInView({ delay = 0, duration = 500, style, children }: { delay?: number; duration?: number; style?: ViewStyle | ViewStyle[]; children: ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -74,7 +76,7 @@ function FadeInView({ delay = 0, duration = 500, style, children }) {
   );
 }
 
-function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
+function ScalePress({ onPress, style, children, scaleValue = 0.97 }: { onPress?: () => void; style?: ViewStyle | ViewStyle[]; children: ReactNode; scaleValue?: number }) {
   const anim = useRef(new Animated.Value(1)).current;
 
   return (
@@ -102,7 +104,9 @@ function ScalePress({ onPress, style, children, scaleValue = 0.97 }) {
   );
 }
 
-function StatPill({ icon, label, value, iconColor, delay = 0 }) {
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+function StatPill({ icon, label, value, iconColor, delay = 0 }: { icon: IconName; label: string; value: string | number; iconColor?: string; delay?: number }) {
   return (
     <FadeInView delay={delay} style={{ flex: 1 }}>
       <ScalePress scaleValue={0.95}>
@@ -165,7 +169,7 @@ function StatPill({ icon, label, value, iconColor, delay = 0 }) {
   );
 }
 
-function HealthBar({ total, lowStock, outOfStock }) {
+function HealthBar({ total, lowStock, outOfStock }: { total: number; lowStock: number; outOfStock: number }) {
   const healthy = total - lowStock - outOfStock;
   const healthyPct = total > 0 ? (healthy / total) * 100 : 0;
   const lowPct = total > 0 ? (lowStock / total) * 100 : 0;
@@ -344,7 +348,7 @@ function HealthBar({ total, lowStock, outOfStock }) {
   );
 }
 
-function AlertBanner({ outOfStock, lowStock }) {
+function AlertBanner({ outOfStock, lowStock }: { outOfStock: number; lowStock: number }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -557,7 +561,7 @@ function EmptyProducts() {
   );
 }
 
-function AnimatedProductCard({ product, index }) {
+function AnimatedProductCard({ product, index }: { product: Product; index: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(25)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
